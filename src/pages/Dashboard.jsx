@@ -23,7 +23,7 @@ const Dashboard = () => {
     <div className="dash">
       <style>{`
         .dash { padding: 20px; background: linear-gradient(135deg, #0a1628 0%, #0d1f35 100%); min-height: calc(100vh - 70px); }
-        .dash-grid { display: grid; grid-template-columns: 260px 1fr 280px; gap: 20px; max-width: 1400px; margin: 0 auto; }
+        .dash-grid { display: grid; grid-template-columns: 280px 1fr 280px; gap: 20px; max-width: 1400px; margin: 0 auto; }
         
         .card { background: linear-gradient(145deg, #132238 0%, #0f1c2e 100%); border: 1px solid rgba(77,168,218,0.15); border-radius: 16px; overflow: hidden; }
         .card-header { background: linear-gradient(90deg, #1e5a7e 0%, #2d7aa8 100%); padding: 12px 18px; font-size: 0.8rem; font-weight: 600; letter-spacing: 0.5px; display: flex; align-items: center; gap: 10px; color: #fff; }
@@ -35,10 +35,10 @@ const Dashboard = () => {
         .profile-batch { font-size: 0.8rem; color: #7aa3c0; line-height: 1.3; }
         .profile-sem { font-size: 0.8rem; color: #7aa3c0; line-height: 1.3; }
         
-        .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px; }
-        .stat-box { background: rgba(13,31,53,0.8); border: 1px solid rgba(77,168,218,0.2); border-radius: 10px; padding: 12px 8px; text-align: center; }
-        .stat-value { font-size: 1.3rem; font-weight: 700; color: #4da8da; line-height: 1.2; }
-        .stat-label { font-size: 0.65rem; color: #7aa3c0; text-transform: uppercase; letter-spacing: 0.3px; margin-top: 4px; line-height: 1.2; white-space: nowrap; }
+        .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+        .stat-box { background: rgba(13,31,53,0.8); border: 1px solid rgba(77,168,218,0.2); border-radius: 10px; padding: 14px 10px; text-align: center; min-width: 0; }
+        .stat-value { font-size: 1.5rem; font-weight: 700; color: #4da8da; line-height: 1.2; }
+        .stat-label { font-size: 0.7rem; color: #7aa3c0; text-transform: uppercase; letter-spacing: 0.3px; margin-top: 6px; line-height: 1.3; }
         
         .progress-section { margin-top: 10px; }
         .progress-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: 0.8rem; }
