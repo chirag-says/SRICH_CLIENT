@@ -1,27 +1,98 @@
+import { useState, useEffect } from 'react'
+import { Link } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
+import api from '../services/api'
 import { HiDocumentText, HiCheckCircle, HiClock, HiChartBar, HiCalendar, HiLink, HiBell, HiChevronRight } from 'react-icons/hi'
 
 const Dashboard = () => {
   const { user } = useAuthStore()
+  const [loading, setLoading] = useState(true)
+  const [stats, setStats] = useState({ totalCases: 0, approved: 0, pending: 0, rejected: 0 })
+  const [attendanceStats, setAttendanceStats] = useState({ daysPresent: 0, hoursLogged: 0, todayStatus: null })
+  const [leaveStats, setLeaveStats] = useState({ total: 0, approved: 0, pending: 0 })
+  const [recentCases, setRecentCases] = useState([])
+  const [recentAttendance, setRecentAttendance] = useState([])
 
-  const stats = { totalCases: 24, approved: 20, pending: 4, avgDuration: '45m' }
-  const profile = { allottedDays: 180, allottedHours: 1200, hoursDone: 980, progress: 81.7 }
-  const schedule = [
-    { time: '8:00 AM', event: 'ANATOMY LECTURE' },
-    { time: '10:30 AM', event: 'CLINICAL ROUNDS' },
-    { time: '2:00 PM', event: 'PHARMACOLOGY LAB' }
-  ]
-  const announcements = ['3RD SEMESTER RESULTS ARE OUT NOW', '25 YEARS COMPLETED - SILVER JUBILEE', 'HAPPY TEACHERS DAY']
-  const quickLinks = ['3RD SEM RESULTS', 'ANATOMY MODULE 3']
-  const recentActivity = [
-    { title: 'PTA Test - Patient JD', time: '2 hours ago', status: 'Approved' },
-    { title: 'Check-in recorded', time: 'Today 9:00 AM', status: 'Verified' },
-    { title: 'ABR Test - Patient MK', time: 'Yesterday', status: 'Pending' }
-  ]
+  useEffect(() => {
+    fetchDashboardData()
+  }, [])
+
+  const fetchDashboardData = async () => {
+    try {
+      setLoading(true)
+
+      // Fetch clinical cases stats
+      const casesRes = await api.get('/clinical-cases')
+      const cases = casesRes.data.data || []
+      const approved = cases.filter(c => c.supervisorApproval?.status === 'Approved').length
+      const pending = cases.filter(c => c.supervisorApproval?.status === 'Pending').length
+      const rejected = cases.filter(c => c.supervisorApproval?.status === 'Rejected').length
+      setStats({ totalCases: cases.length, approved, pending, rejected })
+      setRecentCases(cases.slice(0, 3))
+
+      // Fetch attendance stats
+      try {
+        const attendanceRes = await api.get('/attendance')
+        const attendance = attendanceRes.data.data || []
+        const totalHours = attendance.reduce((sum, a) => sum + (a.totalHours || 0), 0)
+        const today = new Date().toDateString()
+        const todayRecord = attendance.find(a => new Date(a.date).toDateString() === today)
+        setAttendanceStats({
+          daysPresent: attendance.length,
+          hoursLogged: Math.round(totalHours),
+          todayStatus: todayRecord
+        })
+        setRecentAttendance(attendance.slice(0, 3))
+      } catch (e) {
+        console.log('Attendance fetch failed:', e)
+      }
+
+      // Fetch leave requests stats
+      try {
+        const leavesRes = await api.get('/leave-requests')
+        const leaves = leavesRes.data.data || []
+        const leaveApproved = leaves.filter(l => l.status === 'Approved').length
+        const leavePending = leaves.filter(l => l.status === 'Pending').length
+        setLeaveStats({ total: leaves.length, approved: leaveApproved, pending: leavePending })
+      } catch (e) {
+        console.log('Leave requests fetch failed:', e)
+      }
+
+    } catch (error) {
+      console.error('Dashboard fetch error:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const progress = user?.totalAllottedHours > 0
+    ? Math.round((user?.completedHours / user?.totalAllottedHours) * 100)
+    : 0
+
+  if (loading) {
+    return (
+      <div style={{
+        minHeight: 'calc(100vh - 70px)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: 'linear-gradient(135deg, #0a1628 0%, #0d1f35 100%)'
+      }}>
+        <div style={{
+          width: 40, height: 40,
+          border: '3px solid rgba(77,168,218,0.2)',
+          borderTopColor: '#4da8da',
+          borderRadius: '50%',
+          animation: 'spin 0.8s linear infinite'
+        }}></div>
+      </div>
+    )
+  }
 
   return (
     <div className="dash">
       <style>{`
+        @keyframes spin { to { transform: rotate(360deg); } }
         .dash { padding: 20px; background: linear-gradient(135deg, #0a1628 0%, #0d1f35 100%); min-height: calc(100vh - 70px); }
         .dash-grid { display: grid; grid-template-columns: 280px 1fr 280px; gap: 20px; max-width: 1400px; margin: 0 auto; }
         
@@ -58,18 +129,7 @@ const Dashboard = () => {
         .quick-stat-value { font-size: 1.3rem; font-weight: 700; color: #fff; line-height: 1.2; }
         .quick-stat-label { font-size: 0.7rem; color: #7aa3c0; white-space: nowrap; }
         
-        .schedule-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-        .schedule-list { display: flex; flex-direction: column; gap: 6px; }
-        .schedule-item { display: flex; align-items: center; gap: 12px; padding: 8px 0; border-bottom: 1px solid rgba(77,168,218,0.1); }
-        .schedule-item:last-child { border-bottom: none; }
-        .schedule-time { font-size: 0.8rem; color: #4da8da; font-weight: 500; min-width: 65px; }
-        .schedule-event { font-size: 0.85rem; color: #fff; font-weight: 500; }
-        
-        .announcements { display: flex; flex-direction: column; gap: 8px; }
-        .announce-item { display: flex; align-items: flex-start; gap: 10px; font-size: 0.8rem; color: #a8c5db; line-height: 1.4; }
-        .announce-dot { width: 6px; height: 6px; background: #4da8da; border-radius: 50%; margin-top: 5px; flex-shrink: 0; }
-        
-        .link-item { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; background: rgba(13,31,53,0.6); border-radius: 10px; margin-bottom: 8px; cursor: pointer; transition: all 0.2s; }
+        .link-item { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; background: rgba(13,31,53,0.6); border-radius: 10px; margin-bottom: 8px; cursor: pointer; transition: all 0.2s; text-decoration: none; }
         .link-item:hover { background: rgba(77,168,218,0.1); }
         .link-item:last-child { margin-bottom: 0; }
         .link-left { display: flex; align-items: center; gap: 10px; }
@@ -117,7 +177,32 @@ const Dashboard = () => {
         .badge-verified { background: rgba(77,168,218,0.15); color: #4da8da; }
         .badge-pending { background: rgba(251,191,36,0.15); color: #fbbf24; }
         
-        @media (max-width: 1200px) { .dash-grid { grid-template-columns: 1fr; } .quick-stats { grid-template-columns: repeat(2, 1fr); } }
+        .empty-state { text-align: center; padding: 20px; color: #7aa3c0; font-size: 0.85rem; }
+        
+        @media (max-width: 1200px) { 
+          .dash-grid { grid-template-columns: 1fr; } 
+          .quick-stats { grid-template-columns: repeat(2, 1fr); } 
+        }
+        
+        @media (max-width: 640px) {
+          .dash { padding: 12px; }
+          .card-header { padding: 10px 16px; font-size: 0.75rem; }
+          .card-body { padding: 14px; }
+          .profile-info { gap: 12px; margin-bottom: 14px; }
+          .profile-avatar { width: 50px; height: 50px; font-size: 1.2rem; }
+          .profile-name { font-size: 1rem; }
+          .stats-grid { gap: 8px; }
+          .stat-box { padding: 12px 8px; }
+          .stat-value { font-size: 1.3rem; }
+          .stat-label { font-size: 0.65rem; }
+          .quick-stats { grid-template-columns: 1fr 1fr; gap: 8px; }
+          .quick-stat { padding: 10px; gap: 10px; }
+          .quick-stat-icon { width: 36px; height: 36px; }
+          .quick-stat-value { font-size: 1.1rem; }
+          .link-item { padding: 10px 12px; }
+          .link-icon { width: 28px; height: 28px; }
+          .link-text { font-size: 0.8rem; }
+        }
       `}</style>
 
       <div className="dash-grid">
@@ -127,71 +212,118 @@ const Dashboard = () => {
             <div className="card-header">STUDENT PROFILE</div>
             <div className="card-body">
               <div className="profile-info">
-                <div className="profile-avatar">{user?.name?.charAt(0) || 'C'}</div>
+                <div className="profile-avatar">{user?.name?.charAt(0) || 'S'}</div>
                 <div>
-                  <div className="profile-name">{user?.name?.split(' ')[0] || 'Chirag'}</div>
-                  <div className="profile-batch">{user?.batch || '2022-2026'}</div>
-                  <div className="profile-sem">Semester {user?.semester || 3}</div>
+                  <div className="profile-name">{user?.name || 'Student'}</div>
+                  <div className="profile-batch">{user?.batch || 'N/A'}</div>
+                  <div className="profile-sem">Semester {user?.semester || 'N/A'}</div>
                 </div>
               </div>
               <div className="stats-grid">
-                <div className="stat-box"><div className="stat-value">{profile.allottedDays}</div><div className="stat-label">Allotted Days</div></div>
-                <div className="stat-box"><div className="stat-value">{profile.allottedHours}</div><div className="stat-label">Allotted Hours</div></div>
-                <div className="stat-box"><div className="stat-value">{profile.hoursDone}</div><div className="stat-label">Hours Done</div></div>
-                <div className="stat-box"><div className="stat-value">{profile.progress}%</div><div className="stat-label">Progress</div></div>
+                <div className="stat-box"><div className="stat-value">{user?.totalAllottedDays || 180}</div><div className="stat-label">Allotted Days</div></div>
+                <div className="stat-box"><div className="stat-value">{user?.totalAllottedHours || 0}</div><div className="stat-label">Allotted Hours</div></div>
+                <div className="stat-box"><div className="stat-value">{Math.round(user?.completedHours || 0)}</div><div className="stat-label">Hours Done</div></div>
+                <div className="stat-box"><div className="stat-value">{progress}%</div><div className="stat-label">Progress</div></div>
               </div>
               <div className="progress-section">
-                <div className="progress-header"><span className="progress-label">Internship Progress</span><span className="progress-value">82%</span></div>
-                <div className="progress-bar"><div className="progress-fill" style={{ width: '82%' }}></div></div>
+                <div className="progress-header"><span className="progress-label">Internship Progress</span><span className="progress-value">{progress}%</span></div>
+                <div className="progress-bar"><div className="progress-fill" style={{ width: `${progress}%` }}></div></div>
               </div>
             </div>
           </div>
 
           <div className="card">
-            <div className="card-header"><HiChartBar size={14} /> STATISTICS</div>
+            <div className="card-header"><HiLink size={16} /> QUICK LINKS</div>
             <div className="card-body">
-              {quickLinks.map((link, i) => (
-                <div key={i} className="link-item">
-                  <div className="link-left"><div className="link-icon"><HiDocumentText size={14} /></div><span className="link-text">{link}</span></div>
-                  <HiChevronRight className="link-arrow" size={16} />
-                </div>
-              ))}
+              <Link to="/clinical-cases" className="link-item">
+                <div className="link-left"><div className="link-icon"><HiDocumentText size={16} /></div><span className="link-text">Clinical Cases</span></div>
+                <HiChevronRight className="link-arrow" />
+              </Link>
+              <Link to="/attendance" className="link-item">
+                <div className="link-left"><div className="link-icon"><HiCalendar size={16} /></div><span className="link-text">Attendance</span></div>
+                <HiChevronRight className="link-arrow" />
+              </Link>
+              <Link to="/leave-requests" className="link-item">
+                <div className="link-left"><div className="link-icon"><HiClock size={16} /></div><span className="link-text">Leave Requests</span></div>
+                <HiChevronRight className="link-arrow" />
+              </Link>
+              <Link to="/statistics" className="link-item">
+                <div className="link-left"><div className="link-icon"><HiChartBar size={16} /></div><span className="link-text">Statistics</span></div>
+                <HiChevronRight className="link-arrow" />
+              </Link>
             </div>
           </div>
         </div>
 
-        {/* Middle Column */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        {/* Center Column */}
+        <div>
           <div className="quick-stats">
-            <div className="quick-stat"><div className="quick-stat-icon blue"><HiDocumentText size={18} /></div><div className="quick-stat-info"><div className="quick-stat-value">{stats.totalCases}</div><div className="quick-stat-label">Total Cases</div></div></div>
-            <div className="quick-stat"><div className="quick-stat-icon green"><HiCheckCircle size={18} /></div><div className="quick-stat-info"><div className="quick-stat-value">{stats.approved}</div><div className="quick-stat-label">Approved</div></div></div>
-            <div className="quick-stat"><div className="quick-stat-icon yellow"><HiClock size={18} /></div><div className="quick-stat-info"><div className="quick-stat-value">{stats.pending}</div><div className="quick-stat-label">Pending</div></div></div>
-            <div className="quick-stat"><div className="quick-stat-icon orange"><HiChartBar size={18} /></div><div className="quick-stat-info"><div className="quick-stat-value">{stats.avgDuration}</div><div className="quick-stat-label">Avg Duration</div></div></div>
-          </div>
-
-          <div className="card">
-            <div className="card-header"><HiCalendar size={14} /> DAILY SCHEDULE</div>
-            <div className="card-body">
-              <div className="schedule-grid">
-                <div className="schedule-list">
-                  {schedule.map((s, i) => <div key={i} className="schedule-item"><span className="schedule-time">{s.time}</span><span className="schedule-event">{s.event}</span></div>)}
-                </div>
-                <div className="announcements">
-                  {announcements.map((a, i) => <div key={i} className="announce-item"><div className="announce-dot"></div><span>{a}</span></div>)}
-                </div>
-              </div>
+            <div className="quick-stat">
+              <div className="quick-stat-icon blue"><HiDocumentText size={20} /></div>
+              <div className="quick-stat-info"><span className="quick-stat-value">{stats.totalCases}</span><span className="quick-stat-label">Total Cases</span></div>
+            </div>
+            <div className="quick-stat">
+              <div className="quick-stat-icon green"><HiCheckCircle size={20} /></div>
+              <div className="quick-stat-info"><span className="quick-stat-value">{stats.approved}</span><span className="quick-stat-label">Approved</span></div>
+            </div>
+            <div className="quick-stat">
+              <div className="quick-stat-icon yellow"><HiClock size={20} /></div>
+              <div className="quick-stat-info"><span className="quick-stat-value">{stats.pending}</span><span className="quick-stat-label">Pending</span></div>
+            </div>
+            <div className="quick-stat">
+              <div className="quick-stat-icon orange"><HiChartBar size={20} /></div>
+              <div className="quick-stat-info"><span className="quick-stat-value">{attendanceStats.hoursLogged}h</span><span className="quick-stat-label">Hours Logged</span></div>
             </div>
           </div>
 
           <div className="card">
-            <div className="card-header"><HiLink size={14} /> QUICK LINKS</div>
+            <div className="card-header"><HiDocumentText size={16} /> RECENT CLINICAL CASES</div>
             <div className="card-body">
-              {quickLinks.map((link, i) => (
-                <div key={i} className="link-item">
-                  <div className="link-left"><div className="link-icon"><HiDocumentText size={14} /></div><span className="link-text">{link}</span></div>
-                  <HiChevronRight className="link-arrow" size={16} />
-                </div>
-              ))}
+              {recentCases.length > 0 ? (
+                recentCases.map((c, i) => (
+                  <div key={c._id || i} className="activity-item">
+                    <div className="activity-left">
+                      <div className="activity-icon doc"><HiDocumentText size={16} /></div>
+                      <div className="activity-info">
+                        <div className="activity-title">{c.caseNumber || 'Case'} - Patient {c.patientInfo?.initials || 'N/A'}</div>
+                        <div className="activity-time">{c.testsPerformed?.length || 0} tests • {new Date(c.sessionDate).toLocaleDateString()}</div>
+                      </div>
+                    </div>
+                    <span className={`activity-badge ${c.supervisorApproval?.status === 'Approved' ? 'badge-approved' : c.supervisorApproval?.status === 'Pending' ? 'badge-pending' : 'badge-verified'}`}>
+                      {c.supervisorApproval?.status || 'Pending'}
+                    </span>
+                  </div>
+                ))
+              ) : (
+                <div className="empty-state">No clinical cases yet. <Link to="/clinical-cases" style={{ color: '#4da8da' }}>Add your first case</Link></div>
+              )}
+            </div>
+          </div>
+
+          <div className="card" style={{ marginTop: 16 }}>
+            <div className="card-header"><HiCalendar size={16} /> RECENT ATTENDANCE</div>
+            <div className="card-body">
+              {recentAttendance.length > 0 ? (
+                recentAttendance.map((a, i) => (
+                  <div key={a._id || i} className="activity-item">
+                    <div className="activity-left">
+                      <div className="activity-icon check"><HiCalendar size={16} /></div>
+                      <div className="activity-info">
+                        <div className="activity-title">{new Date(a.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</div>
+                        <div className="activity-time">
+                          {a.timeIn ? new Date(a.timeIn).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'N/A'} -
+                          {a.timeOut ? new Date(a.timeOut).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'In progress'}
+                        </div>
+                      </div>
+                    </div>
+                    <span className={`activity-badge ${a.timeOut ? 'badge-approved' : 'badge-pending'}`}>
+                      {a.totalHours ? `${a.totalHours.toFixed(1)}h` : 'Active'}
+                    </span>
+                  </div>
+                ))
+              ) : (
+                <div className="empty-state">No attendance records yet. <Link to="/attendance" style={{ color: '#4da8da' }}>Check in now</Link></div>
+              )}
             </div>
           </div>
         </div>
@@ -200,52 +332,57 @@ const Dashboard = () => {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div className="card">
             <div className="key-stats">
-              <div className="key-stats-title">Key Statistics</div>
+              <div className="key-stats-title">Attendance Summary</div>
               <div className="attendance-row">
                 <div className="attendance-left">
-                  <div className="attendance-label">Attendance</div>
-                  <div className="attendance-value">92%</div>
-                  <div className="attendance-link">⊕ Details</div>
+                  <div className="attendance-label">Days Present</div>
+                  <div className="attendance-value">{attendanceStats.daysPresent}</div>
+                  <Link to="/attendance" className="attendance-link">View Details →</Link>
                 </div>
                 <div className="circle-progress">
-                  <svg width="60" height="60" viewBox="0 0 60 60">
-                    <circle className="circle-bg" cx="30" cy="30" r="25" />
-                    <circle className="circle-fill" cx="30" cy="30" r="25" strokeDasharray={`${2 * Math.PI * 25 * 0.92} ${2 * Math.PI * 25}`} />
+                  <svg viewBox="0 0 40 40" width="60" height="60">
+                    <circle className="circle-bg" cx="20" cy="20" r="17" />
+                    <circle className="circle-fill" cx="20" cy="20" r="17" strokeDasharray={`${(progress / 100) * 106.8} 106.8`} />
                   </svg>
-                  <div className="circle-text">92%</div>
+                  <div className="circle-text">{progress}%</div>
                 </div>
               </div>
+
               <div className="leave-section">
-                <div className="leave-header"><span className="leave-title">Leave Requests</span><span className="leave-total">35</span></div>
+                <div className="leave-header"><span className="leave-title">Leave Requests</span><span className="leave-total">{leaveStats.total}</span></div>
                 <div className="leave-stats">
-                  <div className="leave-stat approved"><HiCheckCircle size={14} /> <span>24</span> <span style={{ opacity: 0.8 }}>Approved</span></div>
-                  <div className="leave-stat pending"><HiClock size={14} /> <span>5</span> <span style={{ opacity: 0.8 }}>Pending</span></div>
+                  <span className="leave-stat approved"><HiCheckCircle size={14} /> {leaveStats.approved} Approved</span>
+                  <span className="leave-stat pending"><HiClock size={14} /> {leaveStats.pending} Pending</span>
                 </div>
               </div>
+
               <div className="notif-row">
-                <div className="notif-left"><HiBell size={16} /> 1 New Notification</div>
-                <span className="notif-badge">1</span>
+                <div className="notif-left"><HiBell size={16} /> Notifications</div>
+                <span className="notif-badge">{stats.pending}</span>
               </div>
             </div>
           </div>
 
           <div className="card">
-            <div className="card-header"><HiDocumentText size={14} /> RECENT ACTIVITY</div>
+            <div className="card-header"><HiBell size={16} /> TODAY'S STATUS</div>
             <div className="card-body">
-              {recentActivity.map((a, i) => (
-                <div key={i} className="activity-item">
-                  <div className="activity-left">
-                    <div className={`activity-icon ${a.status === 'Verified' ? 'check' : 'doc'}`}>
-                      {a.status === 'Verified' ? <HiCheckCircle size={14} /> : <HiDocumentText size={14} />}
-                    </div>
-                    <div className="activity-info">
-                      <div className="activity-title">{a.title}</div>
-                      <div className="activity-time">{a.time}</div>
-                    </div>
+              {attendanceStats.todayStatus ? (
+                <div style={{ textAlign: 'center', padding: '10px 0' }}>
+                  <div style={{ fontSize: '0.9rem', color: '#4ade80', marginBottom: 8 }}>✓ Checked In</div>
+                  <div style={{ fontSize: '0.85rem', color: '#7aa3c0' }}>
+                    {new Date(attendanceStats.todayStatus.timeIn).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    {attendanceStats.todayStatus.timeOut && ` - ${new Date(attendanceStats.todayStatus.timeOut).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`}
                   </div>
-                  <span className={`activity-badge badge-${a.status.toLowerCase()}`}>{a.status}</span>
+                  {attendanceStats.todayStatus.location && (
+                    <div style={{ fontSize: '0.8rem', color: '#7aa3c0', marginTop: 4 }}>{attendanceStats.todayStatus.location}</div>
+                  )}
                 </div>
-              ))}
+              ) : (
+                <div style={{ textAlign: 'center', padding: '10px 0' }}>
+                  <div style={{ fontSize: '0.9rem', color: '#fbbf24', marginBottom: 8 }}>Not checked in today</div>
+                  <Link to="/attendance" style={{ fontSize: '0.85rem', color: '#4da8da' }}>Check in now →</Link>
+                </div>
+              )}
             </div>
           </div>
         </div>

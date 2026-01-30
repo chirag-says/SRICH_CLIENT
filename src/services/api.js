@@ -35,10 +35,18 @@ api.interceptors.request.use(
 api.interceptors.response.use(
     (response) => response,
     (error) => {
-        if (error.response?.status === 401) {
+        const isLoginRequest = error.config?.url?.includes('/auth/login')
+
+        if (error.response?.status === 401 && !isLoginRequest) {
             // Token expired or invalid
             localStorage.removeItem('srish-auth-storage')
-            window.location.href = '/login'
+
+            // Redirect based on current path
+            if (window.location.pathname.startsWith('/professor')) {
+                window.location.href = '/professor/login'
+            } else {
+                window.location.href = '/login'
+            }
         }
         return Promise.reject(error)
     }

@@ -318,6 +318,11 @@ const Login = () => {
         <p className="register-link">
           Don't have account? <Link to="/register">Create now</Link>
         </p>
+
+        {/* Professor Portal Link */}
+        <p className="register-link" style={{ marginTop: '12px' }}>
+          Are you a professor? <Link to="/professor/login">Professor Portal</Link>
+        </p>
       </div>
     </div>
   )
